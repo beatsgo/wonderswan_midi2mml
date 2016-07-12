@@ -13,4 +13,3 @@ Convert Musical Instrument Digital Interface (MIDI/SMF) compositions to Wondersw
 ##Conversion Restrictions
 * 4 channels, one voice per channel
 * No implementation of wave data/wave tables......yet
-* No HyperVoice support......yet
