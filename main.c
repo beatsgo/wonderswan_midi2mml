@@ -57,15 +57,15 @@ char *remove_ext(char* mystr, char dot, char sep)
 
 int main(int argc, char *argv[])
 {
-	//mml variables
-	char songName[]="\0"; 
-	unsigned int format, numTracks, trackRes; //MIDI format, # of Tracks, time resolution
+	
+	char songName[] = "\0";
+	unsigned int format, trackRes, numTracks, beatsPerMin;
 	
 	//pointer variables
 	int fileLength;
 	char buffer[]="\0";
 	char *buffPtr, *midiDump, *mmlOutput, *hexDumpOutput = "midi_hexdump.txt";
-	char *curPtr, *endPtr; //Parsing pointers
+	char *curPtr, *parPtr, *endPtr; //Parsing pointers
 	FILE *inputPtr, *outputPtr;
 	
 	/*
@@ -84,11 +84,13 @@ int main(int argc, char *argv[])
 	printf("...\n");
 	
 	//read file
-	fseek(inputPtr, 0, SEEK_END);
-	fileLength = ftell(inputPtr);
-	rewind(inputPtr);
-	midiDump = (char *)malloc((fileLength+1)*sizeof(char));
+	fseek(inputPtr, 0, SEEK_END); //goes to end of file
+	fileLength = ftell(inputPtr); //"tells" where the pointer is at (at the end of the file)
+	rewind(inputPtr); //goes back to the beginning of the file
+	midiDump = (char *)calloc((fileLength+1), sizeof(char)); //allocate in memory size of the file + 1
 	fread(midiDump, fileLength, 1, inputPtr);
+	fclose(inputPtr);
+	free(inputPtr);
 	printf("...\n");
 	
 	//write hex dump to text file for logging purposes
@@ -98,12 +100,16 @@ int main(int argc, char *argv[])
 		fwrite(&midiDump[idx], 1, 1, outputPtr);
 	}
 	fclose(outputPtr);
+	free(outputPtr);
 	printf("...\n\n");
 	
 	
 	/*//==================
 		Read Header data
 	*///==================
+	printf("%\n", midiDump[0]);
+	if(midiDump[0] == 0x4D)
+		printf("true!\n\n\n");
 	if(midiDump[0] != 0x4D || midiDump[1] != 0x54 || midiDump[2] != 0x68 || midiDump[3] != 0x64 ||
 	midiDump[4] != 0x00 || midiDump[5] != 0x00 || midiDump[6] != 0x00 || midiDump[7] != 0x06 )
 	{
@@ -133,7 +139,10 @@ int main(int argc, char *argv[])
 			printf("Format: Multi-Track, Asynchronous\n");
 			break;
 		default:
-			printf("Format: ERROR, UNKNOWN FORMAT!\n");
+			printf("ERROR! Not a MIDI file!");
+			fflush(stdout);
+			systemPause();
+			exit(EXIT_FAILURE);
 			break;
 	}
 	
@@ -146,19 +155,35 @@ int main(int argc, char *argv[])
 	printf("Track Resolution: %u\n\n\n", trackRes);
 	
 	/*
-		TODO: Step 2 | Parse Data
+		TODO: Step 2 | Parse Data For Format 0,1,201
 	*/
+	
 	printf("Step 2: Parse Data\n");
+	
+	/*
+		Format 1
+	*/
+	
+	//Move pointer to MTrk entry 
+	midiDump++;
+	endPtr = &midiDump[fileLength-1];
+	
+	printf("Mem Addr:%p%20sHex Value:%2X\n", midiDump, "", midiDump[0]);
+	printf("Mem Addr:%p%20sHex Value:%2X\n", &midiDump[fileLength-1], "", midiDump[fileLength-1]);
+	printf("Mem Addr:%p%20sHex Value:%2X\n", endPtr, "", endPtr[0]);
+	while(midiDump[0] != 0x4D && midiDump != endPtr)
+	{
+		midiDump++;
+		printf("midiDump Mem Addr:%p%20sendPtr MemAddr:%p\n", midiDump, "", endPtr);
+	}
+	
 	
 	/*
 		TODO: Step 3 | Write Parsed Data to MML file
 	*/
 	
 	
-	
-	
 	printf("DONE! Press a key to exit");
-	free()
 	fflush(stdout);
 	systemPause();
 	
