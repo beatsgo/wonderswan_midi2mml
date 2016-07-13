@@ -107,9 +107,6 @@ int main(int argc, char *argv[])
 	/*//==================
 		Read Header data
 	*///==================
-	printf("%\n", midiDump[0]);
-	if(midiDump[0] == 0x4D)
-		printf("true!\n\n\n");
 	if(midiDump[0] != 0x4D || midiDump[1] != 0x54 || midiDump[2] != 0x68 || midiDump[3] != 0x64 ||
 	midiDump[4] != 0x00 || midiDump[5] != 0x00 || midiDump[6] != 0x00 || midiDump[7] != 0x06 )
 	{
