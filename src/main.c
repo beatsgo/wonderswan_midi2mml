@@ -11,17 +11,14 @@
 #include <errno.h>
 #include <string.h>
 
-int systemPause()
+//global struct for defining MML parameters
+struct Parameters
 {
-	#if defined(_WIN64) || defined(_WIN32)
-		system("pause");
-	#elif defined(__CYGWIN) || defined(__unix__) || defined(__linux)
-		system("read -n1 -r key");
-	#endif
-	return 0;
-}
+	char *songName;
+	unsigned int format, trackRes, numTracks, beatsPerMin;
+};
 
-char *remove_ext(char* mystr, char dot, char sep)
+char (*remove_ext(char* mystr, char dot, char sep))
 {
 	char *retstr, *lastdot, *lastsep;
 	
@@ -55,18 +52,41 @@ char *remove_ext(char* mystr, char dot, char sep)
     return retstr;
 }
 
+//TODO: Parsing Data function
+char *parsingData(unsigned char *dumpPtr)
+{
+	unsigned char *endTrkPtr = dumpPtr;
+
+	while(1)//endTrkPtr != &dumpPtr[*ptrLength])
+	{
+		endTrkPtr++;
+		if(endTrkPtr[0] == 0xFF && endTrkPtr[1] == 0x2F && endTrkPtr[2] == 0x00)
+			break;
+	}
+	
+	while(dumpPtr != endTrkPtr)
+	{
+		dumpPtr++;
+		printf("Pointed Location of dumpPtr: \%p\n", &*dumpPtr);
+		printf("Pointed Location of endTrkPtr: \%p\n\n", endTrkPtr);
+		getchar();
+	}
+	
+	dumpPtr += 3;	
+	return &*dumpPtr;
+}
+
 int main(int argc, char *argv[])
 {
 	
-	char songName[] = "\0";
-	unsigned int format, trackRes, numTracks, beatsPerMin;
-	
 	//pointer variables
-	int fileLength;
-	char buffer[]="\0";
-	char *buffPtr, *midiDump, *mmlOutput, *hexDumpOutput = "midi_hexdump.txt";
-	char *curPtr, *parPtr, *endPtr; //Parsing pointers
+	unsigned int fileLength;
+	unsigned char buffer[]="\0";
+	unsigned char *buffPtr, *curPtr, *endPtr, *midiDump, *mmlOutput, *hexDumpOutput = "midi_hexdump.txt";
 	FILE *inputPtr, *outputPtr;
+	
+	//struct mmlParam
+	struct Parameters mmlParam;
 	
 	/*
 		Step 1 | Read and verify MIDI file
@@ -78,7 +98,7 @@ int main(int argc, char *argv[])
 	{
 		printf("ERROR! NOT A VALID FILE\nPress a key to exit");
 		fflush(stdout);
-		systemPause();
+		getchar();
 		exit(EXIT_FAILURE);
 	}
 	printf("...\n");
@@ -87,7 +107,7 @@ int main(int argc, char *argv[])
 	fseek(inputPtr, 0, SEEK_END); //goes to end of file
 	fileLength = ftell(inputPtr); //"tells" where the pointer is at (at the end of the file)
 	rewind(inputPtr); //goes back to the beginning of the file
-	midiDump = (char *)calloc((fileLength+1), sizeof(char)); //allocate in memory size of the file + 1
+	midiDump = (char *)malloc(sizeof(unsigned char)* (fileLength+1)); //allocate in memory size of the file + 1
 	fread(midiDump, fileLength, 1, inputPtr);
 	fclose(inputPtr);
 	free(inputPtr);
@@ -95,7 +115,7 @@ int main(int argc, char *argv[])
 	
 	//write hex dump to text file for logging purposes
 	outputPtr = fopen(hexDumpOutput, "w+b"); //create/update save file in binary mode
-	for(int idx = 0; idx < fileLength; idx++)
+	for(unsigned int idx = 0; idx < fileLength; idx++)
 	{
 		fwrite(&midiDump[idx], 1, 1, outputPtr);
 	}
@@ -107,24 +127,28 @@ int main(int argc, char *argv[])
 	/*//==================
 		Read Header data
 	*///==================
-	if(midiDump[0] != 0x4D || midiDump[1] != 0x54 || midiDump[2] != 0x68 || midiDump[3] != 0x64 ||
-	midiDump[4] != 0x00 || midiDump[5] != 0x00 || midiDump[6] != 0x00 || midiDump[7] != 0x06 )
+	
+	//I think this syntax is incorrect
+	curPtr = &*midiDump;
+	if(curPtr[0] != 0x4D || curPtr[1] != 0x54 || curPtr[2] != 0x68 || curPtr[3] != 0x64 ||
+	curPtr[4] != 0x00 || curPtr[5] != 0x00 || curPtr[6] != 0x00 || curPtr[7] != 0x06 )
 	{
 		printf("ERROR! Not a MIDI file!");
 		fflush(stdout);
-		systemPause();
+		getchar();
+		free(midiDump);
 		exit(EXIT_FAILURE);
 	}	
 	
 	//Copy filename to local array, remove extension
 	strcpy(buffer, argv[1]);
 	buffPtr = remove_ext(buffer, '.', 0);
-	memcpy(songName, buffPtr, strlen(buffPtr));
-	printf("Song Name: %s\n", songName);
+	memcpy(&mmlParam.songName, buffPtr, strlen(buffPtr));
+	printf("Song Name: %s\n", &mmlParam.songName);
 	
 	//Read format
-	format = (unsigned int)(midiDump[9]);
-	switch(format)
+	mmlParam.format = (unsigned int)(curPtr[9]);
+	switch(mmlParam.format)
 	{
 		case 0:
 			printf("Format: Single Track\n");
@@ -138,18 +162,19 @@ int main(int argc, char *argv[])
 		default:
 			printf("ERROR! Not a MIDI file!");
 			fflush(stdout);
-			systemPause();
+			getchar();
+			free(midiDump);
 			exit(EXIT_FAILURE);
 			break;
 	}
 	
 	//Read number of tracks
-	numTracks = (unsigned int)(midiDump[11]);
-	printf("Number of Tracks: %u\n", numTracks);
+	mmlParam.numTracks = (unsigned int)(curPtr[11]);
+	printf("Number of Tracks: %u\n", mmlParam.numTracks);
 	
 	//Read track resolution
-	trackRes = (unsigned int)(midiDump[13]);
-	printf("Track Resolution: %u\n\n\n", trackRes);
+	mmlParam.trackRes = (unsigned int)(curPtr[13]);
+	printf("Track Resolution: %u\n\n\n", mmlParam.trackRes);
 	
 	/*
 		TODO: Step 2 | Parse Data For Format 0,1,201
@@ -157,21 +182,30 @@ int main(int argc, char *argv[])
 	
 	printf("Step 2: Parse Data\n");
 	
+	
+	//Move pointer to MTrk entry 
+	endPtr = &curPtr[fileLength];
+	
+	printf("Current position of endPtr: %p\n", &*endPtr);
+	getchar();
 	/*
 		Format 1
 	*/
 	
-	//Move pointer to MTrk entry 
-	midiDump++;
-	endPtr = &midiDump[fileLength-1];
-	
-	printf("Mem Addr:%p%20sHex Value:%2X\n", midiDump, "", midiDump[0]);
-	printf("Mem Addr:%p%20sHex Value:%2X\n", &midiDump[fileLength-1], "", midiDump[fileLength-1]);
-	printf("Mem Addr:%p%20sHex Value:%2X\n", endPtr, "", endPtr[0]);
-	while(midiDump[0] != 0x4D && midiDump != endPtr)
+	while(curPtr != endPtr)
 	{
-		midiDump++;
-		printf("midiDump Mem Addr:%p%20sendPtr MemAddr:%p\n", midiDump, "", endPtr);
+		//detect "MTrk"
+		if(curPtr[0] == 0x4D && curPtr[1] == 0x54 && curPtr[2] == 0x72 && curPtr[3] == 0x6B)
+		{
+			printf("MTrk detected!\n");
+			curPtr += 4;
+			curPtr = parsingData(curPtr);
+		}
+		else
+			curPtr++;
+		
+		printf("Current location curPtr pointing to: %p%5sCurrent value at location:%2X\n", &*curPtr, "", *curPtr);
+		getchar();
 	}
 	
 	
@@ -181,9 +215,9 @@ int main(int argc, char *argv[])
 	
 	
 	printf("DONE! Press a key to exit");
-	fflush(stdout);
-	systemPause();
-	
+	//fflush(stdout);
+	getchar();
+	free(midiDump);
 	
 	return 0;
 	

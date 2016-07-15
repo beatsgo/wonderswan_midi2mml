@@ -1,0 +1,6 @@
+7/14/2015
+===============
+*Removed systemPause function because it's pretty obvious getchar() is a more efficient, native C, and portable function. No need to execute a system command and hog resources
+*Made progress on reading the data. Now parsing data function returns pointer's pointed location so I don't need to worry about 
+*Unsigned every value because I'm not dealing with any negative values. This fixed the data readability through my HexDump
+*Shorten up my code, removed unneccssary code and compress more if statements into the while loops for better readbility
