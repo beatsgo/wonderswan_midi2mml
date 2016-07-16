@@ -4,18 +4,18 @@
 	beatsgo (c) 2016
 	note: the intent of this tool is to generate clean WonderSwan MML files
 */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <errno.h>
 #include <string.h>
+#include <math.h>
 
 //global struct for defining MML parameters
-struct Parameters
+struct param
 {
 	char *songName;
-	unsigned int format, trackRes, numTracks, beatsPerMin;
+	unsigned int format, trackRes, numTracks, beatsPerMin = 0, timeSigNum = 0, timeSigDem = 0, ticksPerQuart = 0;
 };
 
 char (*remove_ext(char* mystr, char dot, char sep))
@@ -53,40 +53,62 @@ char (*remove_ext(char* mystr, char dot, char sep))
 }
 
 //TODO: Parsing Data function
-char *parsingData(unsigned char *dumpPtr)
+char *parsingData(unsigned char *dumpPtr, struct param *songVar)
 {
-	unsigned char *endTrkPtr = dumpPtr;
-
-	while(1)//endTrkPtr != &dumpPtr[*ptrLength])
-	{
+	unsigned char *endTrkPtr = dumpPtr, *tempPtr;
+	
+	 
+	/*
+		
+		tempPtr = &*dumpPtr;		
+		while(tempPtr[0] != 0xFF || tempPtr[1] != 0x51 || tempPtr[2] != 0x03)
+			tempPtr++;
+	
+	
+	*/
+	
+	while(endTrkPtr[0] != 0xFF || endTrkPtr[1] != 0x2F || endTrkPtr[2] != 0x00)//endTrkPtr != &dumpPtr[*ptrLength])
 		endTrkPtr++;
-		if(endTrkPtr[0] == 0xFF && endTrkPtr[1] == 0x2F && endTrkPtr[2] == 0x00)
-			break;
-	}
+	
 	
 	while(dumpPtr != endTrkPtr)
 	{
 		dumpPtr++;
-		printf("Pointed Location of dumpPtr: \%p\n", &*dumpPtr);
-		printf("Pointed Location of endTrkPtr: \%p\n\n", endTrkPtr);
-		getchar();
+		if(*dumpPtr == 0xFF)
+		{
+			dumpPtr++;
+			if(dumpPtr[0] == 0x58 && dumpPtr[1] == 0x04)
+			{
+				songVar->timeSigNum = dumpPtr[2];
+				songVar->timeSigDem = dumpPtr[3];
+				songVar->ticksPerQuart = dumpPtr[4];
+			}
+			else if(dumpPtr[0] == 0x51 && dumpPtr[1] == 0x03)
+			{
+				songVar->beatsPerMin = (unsigned int)((songVar->timeSigNum/songVar->timeSigDem) * (60000000/(float)((tempPtr[2] << 16)+(tempPtr[3] << 8)+tempPtr[4])));
+			}
+			
+		}
+		
 	}
-	
+	if(songVar->beatsPerMin == 0)
+	{
+		printf("ERROR! Tempo not initiailized\nPress ENTER to exit");
+	}
 	dumpPtr += 3;	
 	return &*dumpPtr;
 }
 
 int main(int argc, char *argv[])
 {
+	//struct mmlParam
+	struct param mmlParam;
 	
 	//pointer variables
 	unsigned int fileLength;
 	unsigned char buffer[]="\0";
 	unsigned char *buffPtr, *curPtr, *endPtr, *midiDump, *mmlOutput, *hexDumpOutput = "midi_hexdump.txt";
 	FILE *inputPtr, *outputPtr;
-	
-	//struct mmlParam
-	struct Parameters mmlParam;
 	
 	/*
 		Step 1 | Read and verify MIDI file
@@ -96,7 +118,7 @@ int main(int argc, char *argv[])
 	inputPtr = fopen(argv[1],"r");
 	if(inputPtr == NULL)
 	{
-		printf("ERROR! NOT A VALID FILE\nPress a key to exit");
+		printf("ERROR! NOT A VALID FILE\nPress ENTER to exit");
 		fflush(stdout);
 		getchar();
 		exit(EXIT_FAILURE);
@@ -133,7 +155,7 @@ int main(int argc, char *argv[])
 	if(curPtr[0] != 0x4D || curPtr[1] != 0x54 || curPtr[2] != 0x68 || curPtr[3] != 0x64 ||
 	curPtr[4] != 0x00 || curPtr[5] != 0x00 || curPtr[6] != 0x00 || curPtr[7] != 0x06 )
 	{
-		printf("ERROR! Not a MIDI file!");
+		printf("ERROR! Not a MIDI file!\nPress ENTER to exit");
 		fflush(stdout);
 		getchar();
 		free(midiDump);
@@ -160,7 +182,7 @@ int main(int argc, char *argv[])
 			printf("Format: Multi-Track, Asynchronous\n");
 			break;
 		default:
-			printf("ERROR! Not a MIDI file!");
+			printf("ERROR! Not a MIDI file!\nPress ENTER to exit");
 			fflush(stdout);
 			getchar();
 			free(midiDump);
@@ -199,22 +221,23 @@ int main(int argc, char *argv[])
 		{
 			printf("MTrk detected!\n");
 			curPtr += 4;
-			curPtr = parsingData(curPtr);
+			curPtr = parsingData(curPtr, &mmlParam);
 		}
 		else
 			curPtr++;
-		
-		printf("Current location curPtr pointing to: %p%5sCurrent value at location:%2X\n", &*curPtr, "", *curPtr);
-		getchar();
 	}
 	
-	
+	printf("Initial values of the following values\n");
+	printf("Time Signature: %u/%u\n", mmlParam.timeSigNum, mmlParam.timeSigDem);
+	printf("Ticks Per Quarter Note: \%u\n", mmlParam.ticksPerQuart);
+	printf("BPM: %u\n", mmlParam.beatsPerMin);
+	getchar();
 	/*
 		TODO: Step 3 | Write Parsed Data to MML file
 	*/
 	
 	
-	printf("DONE! Press a key to exit");
+	printf("DONE! Press ENTER to exit");
 	//fflush(stdout);
 	getchar();
 	free(midiDump);
