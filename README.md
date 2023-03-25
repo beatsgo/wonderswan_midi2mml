@@ -1,4 +1,6 @@
-#WonderSwan MIDI2MML Converter
+# WonderSwan MIDI2MML Converter
+THIS REPO IS NOW ARCHIVED FOR HISOTRICAL PURPOSES. I AM NOT MAINTAINING ANYMORE, PLEASE FORK AND CONTINUE IN MY STEAD IF YOU WILL.
+
 Convert Musical Instrument Digital Interface (MIDI/SMF) compositions to 
 Wonderswan Music Macro Language (MML) files that is readable and 
 editable. Tool to improve the development process of WonderSwan 
